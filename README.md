@@ -1,4 +1,9 @@
-Tested with standard system ruby on OSX 10.11.6, and HHVM 3.15.0 running in docker.
+Introduction
+============
+
+This is a Ruby script that executes `hh_client` inside a Docker container, mapping paths as neccessary in arguments, stdin, stdout, and stderr. Works interactively and with Nuclide.
+
+Tested with standard system ruby on OSX 10.11.6, and the 3.15.0 `hhvm/hhvm-proxygen` docker image.
 
 Configuration
 =============
