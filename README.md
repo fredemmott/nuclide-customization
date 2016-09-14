@@ -20,7 +20,7 @@ romantic_keller
 typhon:~ fred$ cat ~/.container_paths.json
 {
   "romantic_keller": {
-    "/Users/fred/hackdev": "/root/hackdev"
+    "/Users/fred": "/root"
   }
 }
 ```
