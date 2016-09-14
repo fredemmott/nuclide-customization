@@ -1,0 +1,102 @@
+#!/usr/bin/ruby
+# Copyright (c) 2016, Fred Emmott <fred@fredemmott.co.uk>
+# 
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+# 
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+# OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+require 'shellwords'
+require 'json'
+
+DEV_CONTAINER=File.read(
+  File.expand_path('~/.dev_container')
+).strip
+MAPPINGS=JSON.parse(
+  File.read(File.expand_path('~/.container_paths.json'))
+)[DEV_CONTAINER]
+
+def forward_map path
+  return path if MAPPINGS.nil?
+  MAPPINGS.each do |local,container|
+    path = path.gsub(local, container)
+  end
+  path
+end
+
+def reverse_map path
+  return path if MAPPINGS.nil?
+  MAPPINGS.each do |local,container|
+    path = path.gsub(container, local)
+  end
+  path
+end
+
+if STDIN.tty?
+  flags='-it'
+else
+  flags='-i'
+end
+
+CONTAINER_PATH=forward_map(Dir.pwd)
+CMD=[
+  'docker',
+  'exec',
+  flags,
+  DEV_CONTAINER,
+  '/bin/bash',
+  '-c',
+  'cd %s; TERM=%s hh_client %s' % [
+    Shellwords.escape(CONTAINER_PATH),
+    ENV['TERM'],
+    Shellwords.join(ARGV.map{|path| forward_map(path)}),
+   ],
+]
+
+input, input_w = IO.pipe
+output_r, output = IO.pipe
+error_r, error = IO.pipe
+pid = Process.fork do
+  input_w.close
+  output_r.close
+  error_r.close
+  STDIN.reopen input unless STDIN.tty?
+  STDOUT.reopen output
+  STDERR.reopen error
+  Process.exec *CMD
+end
+input.close
+output.close
+
+BLOCK_SIZE=4096
+handles = [output_r, error_r]
+handles.push STDIN unless STDIN.tty?
+loop do
+  ready, w, error = IO.select(handles)
+  if (ready.include? STDIN)
+    if STDIN.eof?
+      input_w.close
+      handles.delete STDIN
+      next
+    end
+    input_w.write forward_map(STDIN.readpartial(BLOCK_SIZE))
+    input_w.flush
+  end
+  if (ready.include? output_r)
+    break if output_r.eof?
+    STDOUT.write reverse_map(output_r.readpartial(BLOCK_SIZE))
+  end
+  if (ready.include? error_r)
+    handles.delete error_r if error_r.eof?
+    STDERR.write reverse_map(error_r.readpartial(BLOCK_SIZE))
+  end
+end
+
+Process.waitpid(pid)
+exit $?.exitstatus
