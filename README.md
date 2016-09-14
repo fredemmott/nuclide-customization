@@ -15,9 +15,9 @@ This depends on two files:
 For example:
 
 ```
-typhon:~ fred$ cat ~/.dev_container
+$ cat ~/.dev_container
 romantic_keller
-typhon:~ fred$ cat ~/.container_paths.json
+$ cat ~/.container_paths.json
 {
   "romantic_keller": {
     "/Users/fred": "/root"
