@@ -81,6 +81,8 @@ output.close
 BLOCK_SIZE=4096
 handles = [output_r, error_r]
 handles.push STDIN unless STDIN.tty?
+stdout_text = ''
+stderr_text = ''
 loop do
   ready, w, error = IO.select(handles)
   if (ready.include? STDIN)
@@ -94,13 +96,17 @@ loop do
   end
   if (ready.include? output_r)
     break if output_r.eof?
-    STDOUT.write reverse_map(output_r.readpartial(BLOCK_SIZE))
+    stdout_text += output_r.readpartial(BLOCK_SIZE)
   end
   if (ready.include? error_r)
     handles.delete error_r if error_r.eof?
-    STDERR.write reverse_map(error_r.readpartial(BLOCK_SIZE))
+    stderr_text += error_r.readpartial(BLOCK_SIZE)
   end
 end
 
+STDOUT.write reverse_map(stdout_text)
+STDOUT.flush
+STDERR.write reverse_map(stderr_text)
+STDERR.flush
 Process.waitpid(pid)
 exit $?.exitstatus
