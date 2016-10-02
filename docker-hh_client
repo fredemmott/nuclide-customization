@@ -59,8 +59,11 @@ CMD=[
    ],
 ]
 
-File.open('/tmp/hhlog', 'a') do |f|
- f.write CMD.join("\t")+"\n"
+LOG_FILE='/tmp/docker-hh_client.log'
+if File.exists? LOG_FILE then
+  File.open(LOG_FILE, 'a') do |f|
+    f.write CMD.join("\t")+"\n"
+  end
 end
 
 input, input_w = IO.pipe
